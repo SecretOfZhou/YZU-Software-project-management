@@ -1,0 +1,101 @@
+#include<SoftwareSerial.h>
+#include<string.h>
+SoftwareSerial mySerial(10,11);
+String key;
+String data;
+int num=0;
+int num1=0;
+void setup(){
+  Serial.begin(9600);
+  mySerial.begin(9600);
+  connect_sim900a();
+} 
+void readserial(){
+  while(mySerial.available()>0){
+    char c=char(mySerial.read());
+    data+=c;
+  }
+}
+void connect_sim900a(){
+  mySerial.print("AT\r\n");
+  delay(1000);readserial();
+  mySerial.print("AT+CPIN?\r\n");
+  delay(1000);readserial();
+  mySerial.print("AT+CIPSTART=\"TCP\",\"121.40.89.114\",\"60000\"\r\n");
+  delay(1000);readserial();
+  mySerial.print("AT+CIPSEND\r\n");
+  delay(1000);readserial();
+  Serial.print(data);
+}
+void send(){
+  int i=0;
+  String temp_ZD="_ZD_:";
+  String temp_WD="_WD_:";
+  int temp_0=0,temp_1=0;
+    while(i<=10)
+    {
+      i=i+1;
+      int temp=analogRead(A5);
+      int temp1=analogRead(A4);
+      temp_0=temp_0+temp;
+      temp_1=temp_1+temp1;
+      Serial.print(temp);
+      Serial.print(" ");
+      temp_ZD+=temp;
+      temp_ZD+='#';
+      temp_WD+=temp1;
+      temp_WD+='#';
+    }
+  int y=-0.02595582*temp_0/10+0.00211888*temp_1/10+1.1348;
+  Serial.print('|||');
+  Serial.print(y);
+  Serial.print('\n');
+  if(y>=0)
+  {
+    //nomarl
+    delay(2000);
+  }
+  else
+  {
+    delay(500);
+  }
+  mySerial.print("_MACHINE_:01"+temp_ZD+temp_WD);
+  delay(1000);readserial();
+  mySerial.write(0x1A);
+  delay(500);readserial();
+  mySerial.print("AT+CIPSEND\r\n");
+  delay(1000);readserial();
+}
+void re_connect()
+{
+  connect_sim900a();
+}
+void loop(){
+  if(data.indexOf("ERROR") != -1||data.indexOf("FAIL") != -1||num==0)
+  {
+    Serial.print("连接失败\n");
+    data="\0";
+    num1=num1+1;
+    re_connect();
+    delay(1000);
+    if(num1>=2)
+    {
+      send();
+      num=num+1;
+    }
+  }
+  else
+  {
+    data="\0";
+    send();
+    Serial.print("发送成功");
+    Serial.print(num);
+    Serial.print("\n");
+    num=num+1;
+  }
+  if(num==20)
+  {
+    num=0;
+    num1=0;
+  }
+}
